@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jogo das Batatas - Web</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Versao Web</p>
+        <h1>Jogo das Batatas</h1>
+        <p class="subtitle">Salva o mundo das batatas, recolhe energia e derrota a Batata Gigante no navegador.</p>
+      </div>
+      <div class="status">
+        <span id="stateBadge">Menu</span>
+      </div>
+    </header>
+
+    <main class="stage">
+      <canvas id="game" width="960" height="540" aria-label="Jogo das Batatas"></canvas>
+
+      <section class="hud-panel">
+        <div class="tip">Controlos: A/D ou setas, Espaco, F ou clique, E, R, Enter</div>
+        <div class="touch-controls" aria-label="Controlos tacteis">
+          <button data-action="left">Esq</button>
+          <button data-action="right">Dir</button>
+          <button data-action="jump">Saltar</button>
+          <button data-action="shoot">Atirar</button>
+          <button data-action="special">Especial</button>
+          <button data-action="restart">Reiniciar</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
