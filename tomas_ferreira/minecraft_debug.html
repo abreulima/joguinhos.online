@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Minecraft JS</title>
+<style>
+*{margin:0;padding:0}
+body{background:#000;overflow:hidden;font-family:Consolas,monospace;color:#fff;user-select:none}
+canvas{display:block;position:fixed;top:0;left:0}
+#dbg{position:fixed;top:10px;left:10px;color:#0f0;font-size:14px;z-index:999;background:rgba(0,0,0,.8);padding:10px;pointer-events:none;max-width:400px;word-break:break-all}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="dbg">A inicializar...</div>
+<script>
+'use strict';
+const C=document.getElementById('c');
+const X=C.getContext('2d');
+const dbg=document.getElementById('dbg');
+
+function log(...a){dbg.innerHTML+=a.join(' ')+'<br>';console.log(...a);}
+function clearLog(){dbg.innerHTML='';}
+
+try{
+  log('Canvas: '+C.width+'x'+C.height);
+  clearLog();
+}catch(e){log('ERRO '+e.message);}
+
+// Set canvas size
+function resize(){
+  C.width=window.innerWidth;
+  C.height=window.innerHeight;
+  log('Resize: '+C.width+'x'+C.height);
+}
+window.addEventListener('resize',resize);
+resize();
+
+// Blocks
+const B=[
+  null,
+  {n:'Grama',t:'#4CAF50',s:'#6a4e32'},
+  {n:'Terra',t:'#795548',s:'#5D4037'},
+  {n:'Pedra',t:'#9E9E9E',s:'#757575'},
+  {n:'Madeira',t:'#A1887F',s:'#8D6E63'},
+  {n:'Folhas',t:'#2E7D32',s:'#1B5E20'},
+];
+
+// State
+const P={x:0,y:10,z:0,vx:0,vy:0,vz:0,yaw:0,pitch:0,gnd:false,open:false,sel:0};
+const inv=new Array(36).fill(0).map(()=>({t:0,q:0}));
+const hot=[1,2,3,4,5,0,0,0,0];
+const craft=new Array(9).fill(0).map(()=>({t:0,q:0}));
+
+// World
+const W=new Map();
+function pk(x,y,z){return x+','+y+','+z;}
+
+function gen(){
+  log('Gerando mundo...');
+  for(let x=-16;x<=16;x++)for(let z=-16;z<=16;z++){
+    const h=Math.max(0,Math.min(8,Math.floor(3+Math.sin(x*.3)*1.5+Math.cos(z*.28)*1.2+Math.sin((x+z)*.15)*.8)));
+    for(let y=0;y<=h;y++) W.set(pk(x,y,z),y===h?1:y>=h-2?2:3);
+    if((x*x+z*z)%7===0&&Math.abs(x)>2&&Math.abs(z)>2){
+      const th=h+1;
+      for(let y=th;y<th+3;y++) W.set(pk(x,y,z),3);
+      for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++)for(let dy=2;dy<=5;dy++){
+        if(Math.abs(dx)+Math.abs(dz)+Math.abs(dy-3)<=3){
+          const k=pk(x+dx,th+dy,z+dz);
+          if(!W.has(k))W.set(k,4);
+        }
+      }
+    }
+  }
+  log('Mundo gerado: '+W.size+' blocos');
+}
+
+// Projection (simple, no matrix)
+function proj(x,y,z){
+  const dx=x-P.x,dy=y-(P.y+1.5),dz=z-P.z;
+  const cy=Math.cos(-P.yaw),sy=Math.sin(-P.yaw);
+  const rx=dx*cy-dz*sy,ry=dy,rz=dx*sy+dz*cy;
+  if(rz<=0.1)return null;
+  const d=C.width/(2*Math.tan(35*Math.PI/180));
+  return{x:C.width/2+rx*d/rz,y:C.height/2-ry*d/rz,z:rz};
+}
+
+// Draw block
+function drawB(x,y,z,t){
+  const b=B[t];if(!b)return;
+  const v=[
+    proj(x,y,z),proj(x+1,y,z),proj(x+1,y+1,z),proj(x,y+1,z),
+    proj(x,y,z+1),proj(x+1,y,z+1),proj(x+1,y+1,z+1),proj(x,y+1,z+1)
+  ];
+  if(v.some(p=>!p))return;
+  
+  const cx=x+.5,cy=y+.5,cz=z+.5;
+  const ddx=P.x-cx,ddy=P.y+1.5-cy,ddz=P.z-cz;
+  X.fillStyle=b.t;
+  
+  // +X face
+  if(ddx>0&&!W.has(pk(x+1,y,z))){X.beginPath();X.moveTo(v[0].x,v[0].y);X.lineTo(v[1].x,v[1].y);X.lineTo(v[2].x,v[2].y);X.lineTo(v[3].x,v[3].y);X.closePath();X.fill();}
+  // -X face
+  if(ddx<0&&!W.has(pk(x,y,z+1))){X.beginPath();X.moveTo(v[4].x,v[4].y);X.lineTo(v[5].x,v[5].y);X.lineTo(v[6].x,v[6].y);X.lineTo(v[7].x,v[7].y);X.closePath();X.fill();}
+  // +Y face
+  if(ddy>0&&!W.has(pk(x,y+1,z))){X.beginPath();X.moveTo(v[3].x,v[3].y);X.lineTo(v[2].x,v[2].y);X.lineTo(v[6].x,v[6].y);X.lineTo(v[7].x,v[7].y);X.closePath();X.fill();}
+  // -Y face
+  if(ddy<0&&!W.has(pk(x,y,z))){X.beginPath();X.moveTo(v[0].x,v[0].y);X.lineTo(v[1].x,v[1].y);X.lineTo(v[5].x,v[5].y);X.lineTo(v[4].x,v[4].y);X.closePath();X.fill();}
+  // +Z face
+  if(ddz>0&&!W.has(pk(x+1,y,z+1))){X.beginPath();X.moveTo(v[1].x,v[1].y);X.lineTo(v[5].x,v[5].y);X.lineTo(v[6].x,v[6].y);X.lineTo(v[2].x,v[2].y);X.closePath();X.fill();}
+  // -Z face
+  if(ddz<0&&!W.has(pk(x,y,z+1))){X.beginPath();X.moveTo(v[4].x,v[4].y);X.lineTo(v[0].x,v[0].y);X.lineTo(v[3].x,v[3].y);X.lineTo(v[7].x,v[7].y);X.closePath();X.fill();}
+}
+
+// Render frame
+let lastT=performance.now();
+function frame(){
+  const now=performance.now();
+  const dt=Math.min((now-lastT)/1000,0.05);
+  lastT=now;
+  
+  const w=C.width,h=C.height;
+  
+  // Sky
+  X.fillStyle='#87CEEB';
+  X.fillRect(0,0,w,h);
+  
+  // Draw all visible blocks (back to front)
+  const list=[];
+  for(const [k,t] of W){
+    const p=k.split(',').map(Number);
+    const dx=p[0]-P.x,dz=p[2]-P.z;
+    if(dx*dx+dz*dz>30*30)continue;
+    const pr=proj(p[0]+.5,p[1]+.5,p[2]+.5);
+    if(!pr)continue;
+    list.push({x:p[0],y:p[1],z:p[2],t:pr.z});
+  }
+  list.sort((a,b)=>b.t-a.t);
+  for(const b of list)drawB(b.x,b.y,b.z,W.get(pk(b.x,b.y,b.z)));
+  
+  // FPS counter
+  X.fillStyle='#fff';
+  X.font='14px Consolas';
+  X.fillText('FPS: '+(1/dt|0)+' | XYZ: '+P.x.toFixed(0)+' '+P.y.toFixed(0)+' '+P.z.toFixed(0)+' | Blocos: '+W.size,10,25);
+  
+  // Hotbar
+  const slotW=48,slotH=48,gap=4;
+  const totalW=9*(slotW+gap);
+  const sx=w/2-totalW/2,sy=h-slotH-20;
+  X.fillStyle='rgba(0,0,0,.7)';
+  X.fillRect(sx-5,sy-5,totalW+10,slotH+10);
+  for(let i=0;i<9;i++){
+    const x=sx+i*(slotW+gap);
+    X.strokeStyle=i===P.sel?'#fff':'#555';
+    X.lineWidth=2;
+    X.strokeRect(x,sy,slotW,slotH);
+    if(hot[i]>0&&B[hot[i]]){
+      X.fillStyle=B[hot[i]].t;
+      X.fillRect(x+4,sy+4,slotW-8,slotH-8);
+    }
+    X.fillStyle='#fff';
+    X.font='12px Consolas';
+    X.fillText(String.fromCharCode(49+i),x+8,sy+slotH-8);
+  }
+  
+  // Instructions
+  X.fillStyle='#fff';
+  X.font='12px Consolas';
+  X.fillText('WASD mover | ESPACO saltar | R reset | E inventario | 1-9 hotbar',10,50);
+}
+
+// Input
+const K={};
+document.addEventListener('keydown',e=>{
+  K[e.code]=true;
+  if(e.code==='KeyE'){
+    P.open=!P.open;
+    if(P.open){
+      document.exitPointerLock();
+      // Build simple inventory grid
+      const ig=document.createElement('div');
+      ig.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.92);border:2px solid #fff;padding:20px;display:grid;grid-template-columns:repeat(9,48px);gap:4px;z-index:1000';
+      for(let i=0;i<36;i++){
+        const slot=document.createElement('div');
+        slot.style.cssText='width:46px;height:46px;background:#222;border:1px solid #555;cursor:pointer;position:relative';
+        if(inv[i].t>0&&B[inv[i].t]){
+          const col=document.createElement('div');
+          col.style.cssText='width:34px;height:34px;background:'+B[inv[i].t].t;
+          col.style.cssText+=';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)';
+          slot.appendChild(col);
+        }
+        const q=document.createElement('span');
+        q.style.cssText='position:absolute;bottom:2px;right:4px;color:#fff;font-size:11px';
+        q.textContent=inv[i].q||'';
+        slot.appendChild(q);
+        slot.onclick=()=>{
+          const sel=document.querySelector('.inv-sel');
+          if(sel){
+            const fi=+sel.dataset.i;
+            const tmp={t:inv[fi].t,q:inv[fi].q};
+            inv[fi]={t:inv[i].t,q:inv[i].q};
+            inv[i]=tmp;
+            ing.removeChild(sel);
+          }else{
+            slot.classList.add('inv-sel');
+            slot.style.borderColor='#fff';
+          }
+        };
+        ig.appendChild(slot);
+      }
+      
+      // Add close button
+      const close=document.createElement('button');
+      close.textContent='FECHAR (E)';
+      close.style.cssText='grid-column:1/-1;padding:10px;cursor:pointer;font-family:Consolas;font-size:14px;margin-top:10px';
+      close.onclick=()=>{P.open=false;document.body.removeChild(ig);C.requestPointerLock();};
+      ig.appendChild(close);
+      document.body.appendChild(ig);
+    }
+  }
+  if(e.code==='KeyR'){P.x=0;P.y=10;P.z=0;P.vx=P.vy=P.vz=0;}
+  if(e.code>='Digit1'&&e.code<='Digit9')P.sel=+e.code[5]-1;
+  if(e.code==='Space'&&P.gnd){P.vy=5;P.gnd=false;e.preventDefault();}
+});
+document.addEventListener('keyup',e=>K[e.code]=false);
+
+document.addEventListener('mousemove',e=>{
+  if(document.pointerLockElement===C){
+    P.yaw+=e.movementX*0.002;
+    P.pitch=Math.max(-1.4,Math.min(1.4,P.pitch-e.movementY*0.002));
+  }
+});
+C.addEventListener('click',e=>{
+  if(!P.open)C.requestPointerLock();
+});
+C.addEventListener('contextmenu',e=>e.preventDefault());
+C.addEventListener('mousedown',e=>{
+  if(document.pointerLockElement!==C)return;
+  // Simple raycast
+  const dx=Math.sin(P.yaw)*Math.cos(P.pitch);
+  const dy=Math.sin(P.pitch);
+  const dz=Math.cos(P.yaw)*Math.cos(P.pitch);
+  let bx=Math.floor(P.x),by=Math.floor(P.y+1.5),bz=Math.floor(P.z);
+  const sx=dx>=0?1:-1,sy=dy>=0?1:-1,sz=dz>=0?1:-1;
+  for(let i=0;i<10;i++){
+    const k=pk(bx,by,bz);
+    if(W.has(k)&&!(bx===Math.floor(P.x)&&by===Math.floor(P.y+1.5)&&bz===Math.floor(P.z))){
+      if(e.button===0){
+        // Break
+        const t=W.get(k);
+        if(t>0){
+          for(let j=0;j<36;j++){if(inv[j].t===t&&inv[j].q<64){inv[j].q++;break;}}
+          W.delete(k);
+          log('Quebrou bloco tipo '+t);
+        }
+      }
+      return;
+    }
+    // Step
+    const tx=dx>=0?bx+1-bx-P.x:bx-P.x;
+    const ty=dy>=0?by+1-by-P.y:by-P.y;
+    const tz=dz>=0?bz+1-bz-P.z:bz-P.z;
+    const tdx=Math.abs(dx)>0.001?Math.abs(1/dx):1e9;
+    const tdy=Math.abs(dy)>0.001?Math.abs(1/dy):1e9;
+    const tdz=Math.abs(dz)>0.001?Math.abs(1/dz):1e9;
+    const tMin=Math.min(tdx>0?tx/tdx:1e9,tdy>0?ty/tdy:1e9,tdz>0?tz/tdz:1e9);
+    // Just step one block
+    if(Math.abs(dx)>=Math.abs(dy)&&Math.abs(dx)>=Math.abs(dz))bx+=sx;
+    else if(Math.abs(dy)>=Math.abs(dx)&&Math.abs(dy)>=Math.abs(dz))by+=sy;
+    else bz+=sz;
+  }
+});
+
+// Physics
+function update(dt){
+  if(P.open)return;
+  
+  // Movement
+  const fx=Math.sin(P.yaw)*Math.cos(P.pitch);
+  const fz=Math.cos(P.yaw)*Math.cos(P.pitch);
+  const rx=Math.cos(P.yaw),rz=-Math.sin(P.yaw);
+  
+  const spd=5*dt;
+  let mvx=(K.KeyW?fx:0)-(K.KeyS?fx:0)+(K.KeyD?rx:0)-(K.KeyA?rx:0);
+  let mvz=(K.KeyW?fz:0)-(K.KeyS?fz:0)+(K.KeyD?rz:0)-(K.KeyA?rz:0);
+  const h=Math.sqrt(mvx*mvx+mvz*mvz);
+  if(h>0){mvx=mvx/h*spd;mvz=mvz/h*spd;}
+  
+  // Collision X
+  P.x+=mvx;
+  if(col(P.x,P.y,P.z))P.x-=mvx;
+  // Collision Z
+  P.z+=mvz;
+  if(col(P.x,P.y,P.z))P.z-=mvz;
+  
+  // Gravity
+  P.vy-=20*dt;
+  P.y+=P.vy*dt;
+  if(col(P.x,P.y,P.z)){
+    if(P.vy<0)P.gnd=true;
+    P.y-=P.vy*dt;
+    P.vy=0;
+  }else P.gnd=false;
+  
+  if(P.y<-20){P.x=0;P.y=15;P.z=0;P.vy=0;}
+}
+
+function col(px,py,pz){
+  const hw=0.15;
+  for(let ix=Math.floor(px-hw);ix<=Math.floor(px+hw);ix++)
+    for(let iy=Math.floor(py);iy<=Math.floor(py+1.7);iy++)
+      for(let iz=Math.floor(pz-hw);iz<=Math.floor(pz+hw);iz++)
+        if(W.has(pk(ix,iy,iz)))return true;
+  return false;
+}
+
+// Main loop
+function loop(){
+  update(1/60);
+  frame();
+  requestAnimationFrame(loop);
+}
+
+// Init
+try{
+  gen();
+  P.y=10;
+  inv[0]={t:1,q:20};
+  inv[1]={t:2,q:20};
+  inv[2]={t:3,q:10};
+  inv[3]={t:4,q:10};
+  log('Iniciando loop...');
+  loop();
+}catch(e){
+  log('ERRO INIT: '+e.message);
+  console.error(e);
+}
+</script>
+</body>
+</html>

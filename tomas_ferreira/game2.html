@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<title>Minecraft Lite - JS</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; font-family: Consolas, monospace; }
+canvas { display: block; }
+#ui { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+.hotbar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; pointer-events: auto; }
+.slot { width: 50px; height: 50px; background: rgba(0,0,0,0.6); border: 2px solid #555; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; }
+.slot.active { border-color: #fff; }
+.slot .qtd { position: absolute; bottom: 2px; right: 4px; color: #fff; font-size: 12px; }
+.slot .block { width: 36px; height: 36px; }
+#inv { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.85); padding: 20px; border: 2px solid #fff; display: none; pointer-events: auto; }
+#inv.show { display: block; }
+#inv .grid { display: grid; grid-template-columns: repeat(9, 50px); gap: 4px; margin-bottom: 20px; }
+#craft { display: grid; grid-template-columns: repeat(3, 50px); gap: 4px; margin-top: 10px; }
+#info { position: fixed; top: 10px; left: 10px; color: #fff; font-size: 14px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="info">WASD mover | Espaco saltar | R reset | E inventario | Click quebrar/colocar</div>
+<div class="hotbar" id="hotbar"></div>
+<div id="inv">
+  <h3 style="color:#fff; margin-bottom:10px;">INVENTARIO</h3>
+  <div class="grid" id="invGrid"></div>
+  <div style="color:#fff;">CRAFTING</div>
+  <div class="grid" id="craft"></div>
+  <button id="craftBtn" style="margin-top:10px; pointer-events:auto;">Craftar</button>
+</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// World settings
+const CHUNK_SIZE = 16;
+const WORLD_SIZE = 5;
+const BLOCK_SIZE = 1;
+const RENDER_DIST = 40;
+const GRAVITY = 0.5;
+const JUMP_FORCE = 8;
+const SPEED = 0.15;
+const MOUSE_SENS = 0.002;
+
+// Block types
+const BLOCKS = {
+  0: { name: 'Ar', color: null },
+  1: { name: 'Grama', color: '#4a9c2d', top: '#5cb338', side: '#8b5a2b' },
+  2: { name: 'Terra', color: '#8b5a2b', top: '#6b4423', side: '#6b4423' },
+  3: { name: 'Pedra', color: '#7a7a7a', top: '#8a8a8a', side: '#6a6a6a' },
+  4: { name: 'Madeira', color: '#b8860b', top: '#daa520', side: '#8b6914' },
+  5: { name: 'Folhas', color: '#228b22', top: '#2e8b2e', side: '#1e6e1e' },
+  6: { name: 'Tijolo', color: '#b22222', top: '#cd5c5c', side: '#8b0000' },
+  7: { name: 'Tabua', color: '#deb887', top: '#f5deb3', side: '#d2b48c' },
+  8: { name: 'Forno', color: '#4a4a4a', top: '#5a5a5a', side: '#3a3a3a' },
+};
+
+const CRAFT_RECIPES = [
+  { result: 6, count: 4, ingredients: {2: 2, 1: 1} }, // Tijolo: 2 terra + 1 grama
+  { result: 7, count: 4, ingredients: {4: 2} },        // Tabua: 2 madeira
+  { result: 8, count: 1, ingredients: {3: 4} },        // Forno: 4 pedra
+];
+
+// Player state
+const player = {
+  x: 0, y: 20, z: 0,
+  vx: 0, vy: 0, vz: 0,
+  yaw: 0, pitch: 0,
+  onGround: false,
+  inventory: new Array(36).fill(0),
+  hotbar: [1, 2, 3, 4, 5, 6, 7, 8, 0],
+  selectedSlot: 0,
+  openInv: false,
+};
+
+// World generation (simple flat with hills)
+const world = new Map();
+
+function generateWorld() {
+  for (let x = -WORLD_SIZE * CHUNK_SIZE; x <= WORLD_SIZE * CHUNK_SIZE; x++) {
+    for (let z = -WORLD_SIZE * CHUNK_SIZE; z <= WORLD_SIZE * CHUNK_SIZE; z++) {
+      const h = Math.floor(Math.sin(x * 0.1) * 2 + Math.cos(z * 0.1) * 2) + 5;
+      for (let y = 0; y <= h; y++) {
+        const k = `${x},${y},${z}`;
+        if (y === h) world.set(k, 1);
+        else if (y >= h - 2) world.set(k, 2);
+        else world.set(k, 3);
+      }
+      // Trees
+      if (x > -10 && x < 10 && z > -10 && z < 10 && Math.random() < 0.01) {
+        const th = h + 1;
+        for (let y = th; y < th + 4; y++) world.set(`${x},${y},${z}`, 4);
+        for (let dx = -2; dx <= 2; dx++) {
+          for (let dz = -2; dz <= 2; dz++) {
+            for (let dy = 3; dy <= 5; dy++) {
+              if (Math.abs(dx) + Math.abs(dz) + Math.abs(dy - 4) <= 3) {
+                world.set(`${x+dx},${th+dy},${z+dz}`, 5);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+function getBlock(x, y, z) {
+  return world.get(`${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`) || 0;
+}
+
+function setBlock(x, y, z, type) {
+  if (type === 0) world.delete(`${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`);
+  else world.set(`${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`, type);
+}
+
+function collides(px, py, pz) {
+  const w = 0.3, h = 1.8;
+  return getBlock(px - w, py, pz - w) > 0 ||
+         getBlock(px + w, py, pz - w) > 0 ||
+         getBlock(px - w, py, pz + w) > 0 ||
+         getBlock(px + w, py, pz + w) > 0 ||
+         getBlock(px - w, py + h, pz - w) > 0 ||
+         getBlock(px + w, py + h, pz - w) > 0 ||
+         getBlock(px - w, py + h, pz + w) > 0 ||
+         getBlock(px + w, py + h, pz + w) > 0;
+}
+
+function raycast(ox, oy, oz, dx, dy, dz, maxDist) {
+  let x = Math.floor(ox), y = Math.floor(oy), z = Math.floor(oz);
+  const stepX = dx > 0 ? 1 : -1;
+  const stepY = dy > 0 ? 1 : -1;
+  const stepZ = dz > 0 ? 1 : -1;
+  let tMaxX = dx === 0 ? Infinity : ((dx > 0 ? x + 1 : x) - ox) / dx;
+  let tMaxY = dy === 0 ? Infinity : ((dy > 0 ? y + 1 : y) - oy) / dy;
+  let tMaxZ = dz === 0 ? Infinity : ((dz > 0 ? z + 1 : z) - oz) / dz;
+  const tDeltaX = dx === 0 ? Infinity : Math.abs(1 / dx);
+  const tDeltaY = dy === 0 ? Infinity : Math.abs(1 / dy);
+  const tDeltaZ = dz === 0 ? Infinity : Math.abs(1 / dz);
+
+  for (let i = 0; i < maxDist * 3; i++) {
+    const b = getBlock(x, y, z);
+    if (b > 0 && !(x === Math.floor(ox) && y === Math.floor(oy) && z === Math.floor(oz))) {
+      return { x, y, z, type: b, face: [dx === 0 ? 0 : -stepX, dy === 0 ? 0 : -stepY, dz === 0 ? 0 : -stepZ] };
+    }
+    if (tMaxX < tMaxY) {
+      if (tMaxX < tMaxZ) { x += stepX; tMaxX += tDeltaX; }
+      else { z += stepZ; tMaxZ += tDeltaZ; }
+    } else {
+      if (tMaxY < tMaxZ) { y += stepY; tMaxY += tDeltaY; }
+      else { z += stepZ; tMaxZ += tDeltaZ; }
+    }
+    if (tMaxX > maxDist && tMaxY > maxDist && tMaxZ > maxDist) break;
+  }
+  return null;
+}
+
+function project(x, y, z) {
+  const dx = x - player.x;
+  const dy = y - (player.y + 1.6);
+  const dz = z - player.z;
+  const cosY = Math.cos(-player.yaw), sinY = Math.sin(-player.yaw);
+  const rx = dx * cosY - dz * sinY;
+  const rz = dx * sinY + dz * cosY;
+  if (rz <= 0.1) return null;
+  const fov = 70 * Math.PI / 180;
+  const d = canvas.width / (2 * Math.tan(fov / 2));
+  const px = canvas.width / 2 + (rx / rz) * d;
+  const py = canvas.height / 2 - (dy / rz) * d;
+  return { x: px, y: py, z: rz };
+}
+
+function drawBlock(x, y, z, type) {
+  const b = BLOCKS[type];
+  if (!b || !b.color) return;
+  const p1 = project(x, y, z);
+  const p2 = project(x + 1, y, z);
+  const p3 = project(x + 1, y + 1, z);
+  const p4 = project(x, y + 1, z);
+  const p5 = project(x, y, z + 1);
+  const p6 = project(x + 1, y, z + 1);
+  const p7 = project(x + 1, y + 1, z + 1);
+  const p8 = project(x, y + 1, z + 1);
+  if (!p1 || !p2 || !p3 || !p4 || !p5 || !p6 || !p7 || !p8) return;
+  const faces = [
+    { pts: [p1, p2, p3, p4], color: b.side, cull: p1.z },
+    { pts: [p5, p6, p7, p8], color: b.side, cull: p5.z },
+    { pts: [p4, p3, p7, p8], color: b.top, cull: p4.z },
+    { pts: [p1, p2, p6, p5], color: b.side, cull: p1.z },
+    { pts: [p2, p6, p7, p3], color: b.side, cull: p2.z },
+    { pts: [p1, p5, p8, p4], color: b.side, cull: p1.z },
+  ];
+  faces.sort((a, b) => b.cull - a.cull);
+  for (const f of faces) {
+    ctx.fillStyle = f.color;
+    ctx.beginPath();
+    ctx.moveTo(f.pts[0].x, f.pts[0].y);
+    for (let i = 1; i < f.pts.length; i++) ctx.lineTo(f.pts[i].x, f.pts[i].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
+
+function render() {
+  ctx.fillStyle = '#87CEEB';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const blocks = [];
+  for (const [k, type] of world) {
+    const [x, y, z] = k.split(',').map(Number);
+    const dx = x - player.x, dz = z - player.z;
+    if (dx * dx + dz * dz > RENDER_DIST * RENDER_DIST) continue;
+    const p = project(x + 0.5, y + 0.5, z + 0.5);
+    if (!p || p.z > RENDER_DIST) continue;
+    blocks.push({ x, y, z, type, z: p.z });
+  }
+  blocks.sort((a, b) => b.z - a.z);
+  for (const b of blocks) drawBlock(b.x, b.y, b.z, b.type);
+}
+
+function updateUI() {
+  const hb = document.getElementById('hotbar');
+  hb.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'slot' + (i === player.selectedSlot ? ' active' : '');
+    const type = player.hotbar[i];
+    if (type && BLOCKS[type]) {
+      const block = document.createElement('div');
+      block.className = 'block';
+      block.style.background = BLOCKS[type].color;
+      slot.appendChild(block);
+    }
+    const qtd = document.createElement('span');
+    qtd.className = 'qtd';
+    qtd.textContent = player.inventory[type] || '';
+    slot.appendChild(qtd);
+    slot.onclick = () => { player.selectedSlot = i; updateUI(); };
+    hb.appendChild(slot);
+  }
+  const invG = document.getElementById('invGrid');
+  invG.innerHTML = '';
+  for (let i = 0; i < 36; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    const type = player.inventory[i];
+    if (type && BLOCKS[type]) {
+      const block = document.createElement('div');
+      block.className = 'block';
+      block.style.background = BLOCKS[type].color;
+      slot.appendChild(block);
+    }
+    slot.onclick = () => {
+      const held = document.querySelector('.slot.held');
+      if (held) {
+        const from = parseInt(held.dataset.idx);
+        player.inventory[from] = type;
+        player.inventory[i] = held.dataset.type || 0;
+        held.classList.remove('held');
+        updateUI();
+      } else {
+        slot.classList.add('held');
+        slot.dataset.idx = i;
+        slot.dataset.type = type;
+      }
+    };
+    invG.appendChild(slot);
+  }
+}
+
+function gameLoop() {
+  // Physics
+  if (!player.openInv) {
+    player.vy -= GRAVITY;
+    player.x += player.vx;
+    player.y += player.vy;
+    player.z += player.vz;
+    player.vx *= 0.8;
+    player.vz *= 0.8;
+    if (collides(player.x, player.y, player.z)) {
+      player.y -= player.vy;
+      player.vy = 0;
+      player.onGround = true;
+    } else {
+      player.onGround = false;
+    }
+  }
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+function init() {
+  generateWorld();
+  player.x = 0;
+  player.y = 20;
+  player.z = 0;
+  player.inventory[1] = 10; // Grama
+  player.inventory[2] = 10; // Terra
+  player.inventory[3] = 5;  // Pedra
+  player.inventory[4] = 5;  // Madeira
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'w' || e.key === 'W') player.vz -= SPEED * Math.cos(player.yaw);
+    if (e.key === 's' || e.key === 'S') player.vz += SPEED * Math.cos(player.yaw);
+    if (e.key === 'a' || e.key === 'A') player.vx -= SPEED * Math.sin(player.yaw);
+    if (e.key === 'd' || e.key === 'D') player.vx += SPEED * Math.sin(player.yaw);
+    if (e.key === ' ' && player.onGround) { player.vy = JUMP_FORCE; player.onGround = false; }
+    if (e.key === 'r') { player.x = 0; player.y = 20; player.z = 0; player.vx = 0; player.vy = 0; player.vz = 0; }
+    if (e.key === 'e') { player.openInv = !player.openInv; document.getElementById('inv').classList.toggle('show', player.openInv); }
+    if (e.key >= '1' && e.key <= '9') player.selectedSlot = parseInt(e.key) - 1;
+    updateUI();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (document.pointerLockElement === canvas) {
+      player.yaw += e.movementX * MOUSE_SENS;
+      player.pitch -= e.movementY * MOUSE_SENS;
+      player.pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, player.pitch));
+    }
+  });
+
+  canvas.addEventListener('click', () => {
+    canvas.requestPointerLock();
+  });
+
+  canvas.addEventListener('mousedown', e => {
+    if (document.pointerLockElement !== canvas) return;
+    const dx = Math.sin(player.yaw) * Math.cos(player.pitch);
+    const dy = Math.sin(player.pitch);
+    const dz = Math.cos(player.yaw) * Math.cos(player.pitch);
+    const hit = raycast(player.x, player.y + 1.6, player.z, dx, dy, dz, 5);
+    if (!hit) return;
+    if (e.button === 0) {
+      const type = getBlock(hit.x, hit.y, hit.z);
+      if (type > 0) {
+        const slot = player.inventory.find(s => s === 0);
+        const idx = player.inventory.indexOf(type);
+        if (idx >= 0 && player.inventory[idx] < 64) {
+          player.inventory[idx]++;
+        } else if (slot) {
+          player.inventory[player.inventory.indexOf(slot)] = type;
+        }
+        setBlock(hit.x, hit.y, hit.z, 0);
+      }
+    } else if (e.button === 2) {
+      const held = player.hotbar[player.selectedSlot];
+      if (held > 0) {
+        const nx = hit.x + hit.face[0];
+        const ny = hit.y + hit.face[1];
+        const nz = hit.z + hit.face[2];
+        if (getBlock(nx, ny, nz) === 0) {
+          setBlock(nx, ny, nz, held);
+          const idx = player.hotbar.indexOf(held);
+          if (player.inventory[idx] > 0) player.inventory[idx]--;
+        }
+      }
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
+
+  updateUI();
+  gameLoop();
+}
+
+init();
+</script>
+</body>
+</html>

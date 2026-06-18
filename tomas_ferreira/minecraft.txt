@@ -1,0 +1,10 @@
+farmer
+gatherer
+miner
+builder
+crafter
+explorer
+survivor
+architect
+engineer
+pioneer
