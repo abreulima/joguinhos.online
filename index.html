@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt">
 <head>
@@ -6,7 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Jogos</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     body {
       font-family: system-ui, -apple-system, sans-serif;
@@ -42,24 +45,23 @@
       margin: 0 auto;
     }
 
+    .grid a {
+      text-decoration: none;
+      color: inherit;
+    }
+
     .card {
       background: #ffffff;
       border-radius: 14px;
       overflow: hidden;
       border: 1px solid #e4e3de;
       transition: transform 0.18s ease, box-shadow 0.18s ease;
+      height: 100%;
     }
 
     .card:hover {
       transform: translateY(-3px);
       box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-    }
-
-    .card-img {
-      width: 100%;
-      aspect-ratio: 4 / 3;
-      object-fit: cover;
-      display: block;
     }
 
     .card-img-placeholder {
@@ -85,20 +87,17 @@
     .card-sub {
       font-size: 13px;
       color: #6b6b67;
-      margin-bottom: 10px;
-    }
-
-    .badge {
-      display: inline-block;
-      font-size: 11px;
-      font-weight: 500;
-      padding: 3px 9px;
-      border-radius: 6px;
     }
 
     @media (max-width: 480px) {
-      .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
-      header h1 { font-size: 1.5rem; }
+      .grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 14px;
+      }
+
+      header h1 {
+        font-size: 1.5rem;
+      }
     }
   </style>
 </head>
@@ -106,116 +105,132 @@
 
   <header>
     <h1>Jogos</h1>
-    <p>Jogos Onlines. Os melhores de Portugal!</p>
+    <p>Jogos Online. Os melhores de Portugal!</p>
   </header>
 
   <main>
     <div class="grid">
 
-      <div class="card">
-        <div class="card-img-placeholder" style="background:#E1F5EE;">🏔️</div>
-        <div class="card-body">
-          <div class="card-name">Climb Higher</div>
-          <div class="card-sub">Afonso Paço</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-img-placeholder" style="background:#E6F1FB;">🏛️</div>
-        <div class="card-body">
-          <div class="card-name">Galaxy Invader</div>
-          <div class="card-sub">Samuel Pereira</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-img-placeholder" style="background:#FAECE7;">🌊</div>
-        <div class="card-body">
-          <div class="card-name">The Big Sorcerer</div>
-          <div class="card-sub">Afonso Almeida</div>
-        </div>
-      </div>
-
-      <a href="/manuel_xavier">
-      <div class="card">
-        <div class="card-img-placeholder" style="background:#FAEEDA;">🍊</div>
-        <div class="card-body">
-          <div class="card-name">A Cidade sob Invasão</div>
-          <div class="card-sub">Manuel Xavier</div>
-        </div>
+      <a href="/afonso_paco">
+        <div class="card">
+          <div class="card-img-placeholder" style="background:#E1F5EE;">🧗</div>
+          <div class="card-body">
+            <div class="card-name">Climb Higher</div>
+            <div class="card-sub">Afonso Paço</div>
+          </div>
         </div>
       </a>
 
-      <div class="card">
-        <div class="card-img-placeholder" style="background:#EEEDFE;">🌸</div>
-        <div class="card-body">
-          <div class="card-name">Aventura na Floresta</div>
-          <div class="card-sub">Simão Pereira</div>
+      <a href="/samuel_pereira">
+        <div class="card">
+          <div class="card-img-placeholder" style="background:#E6F1FB;">👾</div>
+          <div class="card-body">
+            <div class="card-name">Galaxy Invader</div>
+            <div class="card-sub">Samuel Pereira</div>
+          </div>
         </div>
-      </div>
+      </a>
 
-      <div class="card">
-        <div class="card-img-placeholder" style="background:#FCEBEB;">🌅</div>
-        <div class="card-body">
-          <div class="card-name">Sem Nome</div>
-          <div class="card-sub">Tomás Ferreira</div>
+      <a href="/afonso_almeida">
+        <div class="card">
+          <div class="card-img-placeholder" style="background:#FAECE7;">🧙</div>
+          <div class="card-body">
+            <div class="card-name">The Big Sorcerer</div>
+            <div class="card-sub">Afonso Almeida</div>
+          </div>
         </div>
-      </div>
+      </a>
 
-      
-      <div class="card">
-        <div class="card-img-placeholder" style="background:#FCEBEB;">🌅</div>
-        <div class="card-body">
-          <div class="card-name">Dipland</div>
-          <div class="card-sub">André Mendes</div>
+      <a href="/manuel_xavier">
+        <div class="card">
+          <div class="card-img-placeholder" style="background:#FAEEDA;">🚀</div>
+          <div class="card-body">
+            <div class="card-name">A Cidade sob Invasão</div>
+            <div class="card-sub">Manuel Xavier</div>
+          </div>
         </div>
-      </div>
+      </a>
 
-
-      
-      <div class="card">
-        <div class="card-img-placeholder" style="background:#FCEBEB;">🌅</div>
-        <div class="card-body">
-          <div class="card-name">The Forest</div>
-          <div class="card-sub">Francisco Nicolau</div>
+      <a href="/simao_pereira">
+        <div class="card">
+          <div class="card-img-placeholder" style="background:#EEEDFE;">🌲</div>
+          <div class="card-body">
+            <div class="card-name">Aventura na Floresta</div>
+            <div class="card-sub">Simão Pereira</div>
+          </div>
         </div>
-      </div>
+      </a>
 
-      
-      <div class="card">
-        <div class="card-img-placeholder" style="background:#FCEBEB;">🌅</div>
-        <div class="card-body">
-          <div class="card-name">Never Gamble</div>
-          <div class="card-sub">José Fraga</div>
+      <a href="/tomas_ferreira">
+        <div class="card">
+          <div class="card-img-placeholder" style="background:#FCEBEB;">🎮</div>
+          <div class="card-body">
+            <div class="card-name">Sem Nome</div>
+            <div class="card-sub">Tomás Ferreira</div>
+          </div>
         </div>
-      </div>
+      </a>
 
-      <div class="card">
-        <div class="card-img-placeholder" style="background:#FCEBEB;">🌅</div>
-        <div class="card-body">
-          <div class="card-name">A Lenda dos Olhos</div>
-          <div class="card-sub">Pedro Leal</div>
+      <a href="/andre_mendes">
+        <div class="card">
+          <div class="card-img-placeholder" style="background:#FCEBEB;">🗺️</div>
+          <div class="card-body">
+            <div class="card-name">Dipland</div>
+            <div class="card-sub">André Mendes</div>
+          </div>
         </div>
-      </div>
+      </a>
 
-      <div class="card">
-        <div class="card-img-placeholder" style="background:#FCEBEB;">🌅</div>
-        <div class="card-body">
-          <div class="card-name">Jogos das Batatas</div>
-          <div class="card-sub">Diogo Mendes</div>
+      <a href="/francisco_nicolau">
+        <div class="card">
+          <div class="card-img-placeholder" style="background:#FCEBEB;">🏹</div>
+          <div class="card-body">
+            <div class="card-name">The Forest</div>
+            <div class="card-sub">Francisco Nicolau</div>
+          </div>
         </div>
-      </div>
+      </a>
 
-
-            <div class="card">
-        <div class="card-img-placeholder" style="background:#FCEBEB;">🌅</div>
-        <div class="card-body">
-          <div class="card-name">Tente Chegar ao Fim</div>
-          <div class="card-sub">Guilherme Crespo</div>
+      <a href="/jose_fraga">
+        <div class="card">
+          <div class="card-img-placeholder" style="background:#FCEBEB;">🎰</div>
+          <div class="card-body">
+            <div class="card-name">Never Gamble</div>
+            <div class="card-sub">José Fraga</div>
+          </div>
         </div>
-      </div>
+      </a>
 
-      
+      <a href="/pedro_leal">
+        <div class="card">
+          <div class="card-img-placeholder" style="background:#FCEBEB;">👁️</div>
+          <div class="card-body">
+            <div class="card-name">A Lenda dos Olhos</div>
+            <div class="card-sub">Pedro Leal</div>
+          </div>
+        </div>
+      </a>
+
+      <a href="/diogo_mendes">
+        <div class="card">
+          <div class="card-img-placeholder" style="background:#FCEBEB;">🥔</div>
+          <div class="card-body">
+            <div class="card-name">Jogos das Batatas</div>
+            <div class="card-sub">Diogo Mendes</div>
+          </div>
+        </div>
+      </a>
+
+      <a href="/guilherme_crespo">
+        <div class="card">
+          <div class="card-img-placeholder" style="background:#FCEBEB;">🏁</div>
+          <div class="card-body">
+            <div class="card-name">Tente Chegar ao Fim</div>
+            <div class="card-sub">Guilherme Crespo</div>
+          </div>
+        </div>
+      </a>
+
     </div>
   </main>
 
