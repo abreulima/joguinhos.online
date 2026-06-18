@@ -1,0 +1,24 @@
+{
+  "slots": {
+    "2": {
+      "x": 1132,
+      "y": 451,
+      "hp": 0,
+      "max_hp": 5,
+      "has_ranged": true,
+      "dash_unlocked": true,
+      "relics": 0,
+      "score": 150,
+      "facing": -1,
+      "slot": 2,
+      "room": "room6",
+      "collected": [
+        "r1_heal",
+        "r3_dash",
+        "r5_ranged"
+      ],
+      "boss_defeated": false,
+      "time": 1151567
+    }
+  }
+}
