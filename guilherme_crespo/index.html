@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tenta chegar ao fim - Web</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="panel">
+      <div class="topbar">
+        <div>
+          <p class="eyebrow">Versao web</p>
+          <h1>Tenta chegar ao fim</h1>
+        </div>
+        <button id="restartBtn" type="button">Reiniciar</button>
+      </div>
+
+      <div class="stage">
+        <canvas id="game" width="960" height="540" aria-label="Jogo plataforma 2D"></canvas>
+        <div id="overlay" class="overlay visible">
+          <div class="card">
+            <p class="eyebrow">Pronto para jogar</p>
+            <h2>Chega ao boss final</h2>
+            <p>Mover: A/D ou setas. Saltar: Espaço. Atacar: clique esquerdo ou J. Especial: F. Sair: Esc.</p>
+            <button id="startBtn" type="button">Jogar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <span>Salta, recolhe poções e derrota o boss para abrir o objetivo final.</span>
+      </div>
+    </section>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
